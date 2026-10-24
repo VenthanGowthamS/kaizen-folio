@@ -96,10 +96,10 @@ Kaizen Folio is a **Node server with SQLite and uploaded files**, so GitHub Page
 | A1c | Free-tier limits accepted: Render sleeps after ~15 min idle (30–50 s cold start); Supabase pauses after ~1 week idle; ~500 MB DB / 1 GB files; no managed backups | ✅ |
 | A1d | Daily DB copy kept automatically in the bucket (`db/daily/`). Still run **Download everything** monthly as an off-Supabase backup | 🟡 |
 | A1e | `render.yaml` blueprint + tests for storage (31 tests passing) | ✅ |
-| A1f | Create Supabase project + private bucket; create Render service from GitHub; set env vars | 🔴 needs account access (Chrome extension not connected, `gh` not logged in) |
+| A1f | Supabase project + private bucket, Render service live at `kaizen-folio.onrender.com` (free), env vars set. **Still to verify end-to-end:** create the parent account, confirm `db/ankur.db` appears in the bucket, redeploy, confirm data and a photo survive | 🟡 |
 | A2 | Auto-deploy on push to `main` (GitHub Action or host's GitHub integration) | 🔴 |
 | A0 | Domain `kaizenfolio.com` registered on Cloudflare, auto-renew on | ✅ |
-| A3 | **Domain via a free Cloudflare Worker (Oct 2026).** Render's Hobby plan includes 2 custom domains and Pannaipuram uses both (`api.`, `admin.`); a 3rd costs $0.25/month. So `www.kaizenfolio.com` (+ bare → www redirect) is a Worker (`cloudflare/worker.js`, `wrangler.toml`) that forwards to `kaizen-folio.onrender.com`. No Render custom domain. Upgrade path: add `www` as a Render custom domain ($0.25/month) and drop the Worker. Login rate limits see the Worker's IP, not the visitor's (limits are per account too) | 🟡 |
+| A3 | **Domain via a free Cloudflare Worker (Oct 2026).** Render's Hobby plan includes 2 custom domains and Pannaipuram uses both (`api.`, `admin.`); a 3rd costs $0.25/month. So `www.kaizenfolio.com` (+ bare → www redirect) is a Worker (`cloudflare/worker.js`, `wrangler.toml`) that forwards to `kaizen-folio.onrender.com`. No Render custom domain. Upgrade path: add `www` as a Render custom domain ($0.25/month) and drop the Worker. Login rate limits see the Worker's IP, not the visitor's (limits are per account too). **Deployed 24 Oct 2026; `www` serves the app, bare redirects to `www`.** | ✅ |
 | A4 | Env on prod: `COOKIE_SECURE=1`, `TRUST_PROXY=1`, `ANKUR_DATA_DIR` on a persistent volume, `TZ` | 🔴 |
 | A5 | Nightly backup of DB + `uploads/` (e.g. `aws s3 sync`). This is the only copy of the memories. | 🔴 |
 | A6 | Rate-limit sign-in (not yet in the app) | 🔴 |
