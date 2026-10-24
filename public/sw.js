@@ -1,5 +1,5 @@
 // Minimal offline shell. Never caches API responses or media — those are private.
-const CACHE = 'kaizen-shell-v7';
+const CACHE = 'kaizen-shell-v8';
 const SHELL = ['/', '/style.css', '/theme.js', '/catalog.js', '/worldmap.js', '/app.js', '/icon.svg', '/manifest.webmanifest'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => {

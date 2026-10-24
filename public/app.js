@@ -185,8 +185,11 @@ const root = () => document.getElementById('app');
 
 async function boot() {
   document.querySelector('.buddy')?.remove(); document.querySelector('.surfer')?.remove();
+  // A sleeping free host can take a minute to answer: after a moment, show the welcome page instead of a blank screen.
+  const slow = setTimeout(renderWaking, 700);
   try {
     const me = await api('GET', '/api/me');
+    clearTimeout(slow);
     if (!me.user) return renderAuth(me.needsSetup);
     if (!state.user || state.user.id !== me.user.id) state.buddy = null;
     state.user = me.user;
@@ -196,8 +199,19 @@ async function boot() {
     if (isKid()) state.view = 'portfolio';
     renderShell();
   } catch (ex) {
+    clearTimeout(slow);
     root().replaceChildren(h('div', { class: 'auth' }, h('div', { class: 'card' }, h('p', null, ex.message), h('button', { class: 'btn', onclick: boot }, 'Try again'))));
   }
+}
+
+function renderWaking() {
+  root().replaceChildren(h('main', { class: 'auth' },
+    h('div', { class: 'card waking', role: 'status' },
+      sproutSvg('logo'),
+      h('h1', null, 'Kaizen Folio'),
+      h('p', { class: 'tag' }, 'Waking things up… the first visit of the day can take up to a minute. Watch the tour while you wait 🌱'),
+      h('div', { class: 'w-bar', 'aria-hidden': 'true' }, h('span'))),
+    welcomeSection()));
 }
 
 /* ---------- welcome: what this is and how to use it, shown under the sign-in card ---------- */

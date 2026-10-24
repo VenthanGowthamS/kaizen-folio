@@ -1,6 +1,20 @@
-// Cloudflare Worker in front of the Render service, so www.kaizenfolio.com works without a paid Render custom domain.
+// Cloudflare Worker in front of Kaizen Folio.
 // - kaizenfolio.com redirects to www.kaizenfolio.com
-// - everything else is forwarded to ORIGIN (the onrender.com address), redirects rewritten back to www
+// - the app's static files (public/) are served from Cloudflare's edge: instant, never asleep
+// - /api, /media and /buddy-pic (private data) are forwarded to ORIGIN, the Render service, with redirects rewritten back to www
+// Static files carry the same security headers server.js sets, since they no longer pass through Express.
+const PRIVATE = /^\/(api|media|buddy-pic)(\/|$)/;
+
+const SECURITY_HEADERS = {
+  'X-Robots-Tag': 'noindex, nofollow',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  'X-Frame-Options': 'DENY',
+  'Content-Security-Policy':
+    "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; " +
+    "style-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+};
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -8,22 +22,32 @@ export default {
       url.hostname = 'www.kaizenfolio.com';
       return Response.redirect(url.toString(), 301);
     }
-
-    const origin = new URL(env.ORIGIN);
-    const target = new URL(url.pathname + url.search, origin);
-    const headers = new Headers(request.headers);
-    headers.delete('Host');
-    headers.set('X-Forwarded-Host', url.hostname);
-    headers.set('X-Forwarded-Proto', 'https');
-
-    const res = await fetch(new Request(target, { method: request.method, headers, body: request.body, redirect: 'manual' }));
-
-    const out = new Headers(res.headers);
-    const location = out.get('Location');
-    if (location) {
-      const l = new URL(location, target);
-      if (l.origin === origin.origin) { l.protocol = 'https:'; l.host = url.host; out.set('Location', l.toString()); }
-    }
-    return new Response(res.body, { status: res.status, statusText: res.statusText, headers: out });
+    return PRIVATE.test(url.pathname) ? proxy(request, env, url) : serveStatic(request, env);
   },
 };
+
+async function serveStatic(request, env) {
+  const res = await env.ASSETS.fetch(request);
+  const out = new Headers(res.headers);
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) out.set(k, v);
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers: out });
+}
+
+async function proxy(request, env, url) {
+  const origin = new URL(env.ORIGIN);
+  const target = new URL(url.pathname + url.search, origin);
+  const headers = new Headers(request.headers);
+  headers.delete('Host');
+  headers.set('X-Forwarded-Host', url.hostname);
+  headers.set('X-Forwarded-Proto', 'https');
+
+  const res = await fetch(new Request(target, { method: request.method, headers, body: request.body, redirect: 'manual' }));
+
+  const out = new Headers(res.headers);
+  const location = out.get('Location');
+  if (location) {
+    const l = new URL(location, target);
+    if (l.origin === origin.origin) { l.protocol = 'https:'; l.host = url.host; out.set('Location', l.toString()); }
+  }
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers: out });
+}

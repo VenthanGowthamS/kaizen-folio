@@ -104,6 +104,8 @@ npm test       # 26 API tests
 
 Setup: create a Supabase project and a **private** bucket named `kaizen-folio`; in Render set `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` (the service key stays on the server only). Free-tier trade-offs: Render sleeps after ~15 min idle (first visit takes 30–50 s) and Supabase pauses a project after a week with no activity. Sample moments' pictures are not mirrored; they are demo content only.
 
+**Static files at the edge.** `wrangler.toml` publishes `public/` to Cloudflare so the app opens instantly even when Render is asleep; only `/api`, `/media` and `/buddy-pic` go to Render. After changing anything in `public/`, run `npx wrangler deploy` (log in once with `npx wrangler login`).
+
 ### Deploying (AWS outline)
 
 1. A small EC2 or Lightsail instance with Node 22; app in `/opt/kaizen-folio`.

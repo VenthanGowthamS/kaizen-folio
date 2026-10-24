@@ -223,6 +223,14 @@ label.field { display: grid; gap: 4px; font-size: .88rem; color: var(--muted); }
 .auth h1 { text-align: center; font-size: 2rem; }
 .auth .tag { text-align: center; color: var(--muted); margin: 4px 0 18px; }
 
+/* indeterminate bar shown while a sleeping host wakes up */
+.waking { text-align: center; }
+.waking .tag { margin-bottom: 14px; }
+.w-bar { height: 6px; border-radius: 999px; background: var(--leaf-soft); overflow: hidden; }
+.w-bar span { display: block; height: 100%; width: 40%; border-radius: 999px; background: var(--leaf); animation: w-slide 1.4s ease-in-out infinite; }
+@keyframes w-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+@media (prefers-reduced-motion: reduce) { .w-bar span { animation: none; width: 100%; opacity: .5; } }
+
 /* welcome section under the sign-in card */
 .welcome { width: 100%; max-width: 560px; padding: 4px 2px 40px; }
 .welcome h2 { font-family: var(--serif); font-size: 1.5rem; text-align: center; margin: 0 0 6px; }
