@@ -99,7 +99,7 @@ Kaizen Folio is a **Node server with SQLite and uploaded files**, so GitHub Page
 | A1f | Create Supabase project + private bucket; create Render service from GitHub; set env vars | 🔴 needs account access (Chrome extension not connected, `gh` not logged in) |
 | A2 | Auto-deploy on push to `main` (GitHub Action or host's GitHub integration) | 🔴 |
 | A0 | Domain `kaizenfolio.com` registered on Cloudflare, auto-renew on | ✅ |
-| A3 | Public address is **`www.kaizenfolio.com`** (decided Oct 2026). Add both `www` and the bare domain as custom domains in Render (Render redirects bare → www); in Cloudflare add CNAME `www` and CNAME `@` (flattened) → Render, DNS only until the certificate is issued | 🔴 |
+| A3 | **Domain via a free Cloudflare Worker (Oct 2026).** Render's Hobby plan includes 2 custom domains and Pannaipuram uses both (`api.`, `admin.`); a 3rd costs $0.25/month. So `www.kaizenfolio.com` (+ bare → www redirect) is a Worker (`cloudflare/worker.js`, `wrangler.toml`) that forwards to `kaizen-folio.onrender.com`. No Render custom domain. Upgrade path: add `www` as a Render custom domain ($0.25/month) and drop the Worker. Login rate limits see the Worker's IP, not the visitor's (limits are per account too) | 🟡 |
 | A4 | Env on prod: `COOKIE_SECURE=1`, `TRUST_PROXY=1`, `ANKUR_DATA_DIR` on a persistent volume, `TZ` | 🔴 |
 | A5 | Nightly backup of DB + `uploads/` (e.g. `aws s3 sync`). This is the only copy of the memories. | 🔴 |
 | A6 | Rate-limit sign-in (not yet in the app) | 🔴 |
@@ -180,7 +180,7 @@ We can prove *"held, unchanged, since <date>"*, not *"this person created it"*.
 | Supabase database password | Password manager | Not used by the app (it uses Storage only) |
 | Supabase publishable key | Not used | The app has no browser-side Supabase calls |
 | `COOKIE_SECURE`, `TRUST_PROXY`, `TZ` | `render.yaml` | Already set |
-| Domain `www.kaizenfolio.com` (+ bare `kaizenfolio.com` redirecting to it) | Cloudflare DNS (CNAME `www` and `@` → Render, DNS only until the certificate is issued) | Domain registered on Cloudflare |
+| Domain `www.kaizenfolio.com` (+ bare `kaizenfolio.com` redirecting to it) | Cloudflare Worker `kaizen-folio-proxy` with custom domains (no manual DNS records; delete any old `www`/`@` records first) | Domain registered on Cloudflare |
 
 ## 12. Next actions
 1. Pick the host and register DNS for the Kaizen Folio domain (Phase A).

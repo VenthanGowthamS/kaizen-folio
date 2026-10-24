@@ -1,0 +1,11 @@
+name = "kaizen-folio-proxy"
+main = "cloudflare/worker.js"
+compatibility_date = "2026-10-01"
+
+routes = [
+  { pattern = "www.kaizenfolio.com", custom_domain = true },
+  { pattern = "kaizenfolio.com", custom_domain = true },
+]
+
+[vars]
+ORIGIN = "https://kaizen-folio.onrender.com"
