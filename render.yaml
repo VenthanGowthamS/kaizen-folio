@@ -1,0 +1,26 @@
+# Render Blueprint: free web service that auto-deploys from GitHub.
+# Render's free disk is wiped on every deploy, so data lives in Supabase (see storage.js).
+services:
+  - type: web
+    name: kaizen-folio
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /robots.txt
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: TZ
+        value: Asia/Singapore
+      - key: COOKIE_SECURE
+        value: "1"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: kaizen-folio

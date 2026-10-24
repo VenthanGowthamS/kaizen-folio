@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const { openDb, seedLadder, tx } = require('./db');
 const { addSampleContent, removeSampleContent, refreshSamples } = require('./demo-content');
 const { streamExport } = require('./export');
+const { createStorage } = require('./storage');
 
 const catalog = require('./public/catalog');
 
@@ -191,8 +192,9 @@ const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 // Uses the server's local time zone, so set TZ (e.g. TZ=Asia/Singapore) on the host.
 const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-function createApp({ dataDir, cookieSecure = false } = {}) {
+function createApp({ dataDir, cookieSecure = false, storage } = {}) {
   dataDir = dataDir || process.env.ANKUR_DATA_DIR || path.join(__dirname, 'data');
+  storage = storage || createStorage({ dataDir });
   const uploadDir = path.join(dataDir, 'uploads');
   const db = openDb(dataDir);
   const app = express();
@@ -206,6 +208,12 @@ function createApp({ dataDir, cookieSecure = false } = {}) {
     if (refreshed) console.log(`Sample moments updated to the latest set for ${refreshed} child${refreshed > 1 ? 'ren' : ''}.`);
   }
   const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
+
+  // Any successful change schedules a database snapshot to storage (no-op unless Supabase is configured).
+  app.use((req, res, next) => {
+    if (!/^(GET|HEAD|OPTIONS)$/.test(req.method)) res.on('finish', () => { if (res.statusCode < 400) storage.scheduleSnapshot(db); });
+    next();
+  });
 
   // ---- security headers: this is a private app, keep it out of search engines and frames
   app.use((req, res, next) => {
@@ -405,18 +413,29 @@ function createApp({ dataDir, cookieSecure = false } = {}) {
   }
 
   // ---- uploads
-  const storage = multer.diskStorage({
+  const diskStorage = multer.diskStorage({
     destination: uploadDir,
     filename: (req, file, cb) => cb(null, crypto.randomBytes(16).toString('hex') + (MIME_EXT[file.mimetype] || '')),
   });
   const upload = multer({
-    storage,
+    storage: diskStorage,
     limits: { fileSize: 80 * 1024 * 1024, files: 8 },
     fileFilter: (req, file, cb) =>
       MIME_EXT[file.mimetype] ? cb(null, true) : cb(new HttpError(400, `Unsupported file type: ${file.mimetype}`)),
   });
-  const discard = (files) => (files || []).forEach((f) => fs.rm(f.path, { force: true }, () => {}));
-  const removeFile = (name) => fs.rm(path.join(uploadDir, name), { force: true }, () => {});
+  const removeFile = (name) => { fs.rm(path.join(uploadDir, name), { force: true }, () => {}); storage.remove(name); };
+  const discard = (files) => (files || []).forEach((f) => removeFile(f.filename));
+  // Copy fresh uploads to storage before answering, so "saved" means saved even if the host's disk is wiped next.
+  const mirror = async (req, res, next) => {
+    const files = req.files || (req.file ? [req.file] : []);
+    try { for (const f of files) await storage.put(f.filename); }
+    catch (err) { console.error(err.message); discard(files); return next(new HttpError(502, 'Could not save the file. Please try again.')); }
+    next();
+  };
+  const sendStored = (res, next, file) =>
+    storage.ensureLocal(file)
+      .then(() => res.sendFile(path.join(uploadDir, file), (err) => { if (err) next(err.status ? new HttpError(err.status, 'File missing') : err); }))
+      .catch(next);
   function saveMedia(entryId, files) {
     const ins = db.prepare('INSERT INTO media (entry_id, file, original, mime, size) VALUES (?, ?, ?, ?, ?)');
     for (const f of files || []) {
@@ -469,7 +488,7 @@ function createApp({ dataDir, cookieSecure = false } = {}) {
     res.json(withExtras(rows));
   });
 
-  app.post('/api/children/:cid/entries', requireParent, childParam, upload.array('files', 8), (req, res) => {
+  app.post('/api/children/:cid/entries', requireParent, childParam, upload.array('files', 8), mirror, (req, res) => {
     try {
       const v = parseFields(ENTRY_FIELDS, req.body);
       const id = tx(db, () => {
@@ -527,7 +546,7 @@ function createApp({ dataDir, cookieSecure = false } = {}) {
     res.json(entryWithMedia(c.entry_id));
   });
 
-  app.post('/api/entries/:id/media', requireParent, entryParam, upload.array('files', 8), (req, res) => {
+  app.post('/api/entries/:id/media', requireParent, entryParam, upload.array('files', 8), mirror, (req, res) => {
     try { saveMedia(req.entry.id, req.files); } catch (err) { discard(req.files); throw err; }
     res.status(201).json(entryWithMedia(req.entry.id));
   });
@@ -556,7 +575,7 @@ function createApp({ dataDir, cookieSecure = false } = {}) {
     res.setHeader('Content-Type', m.mime);
     res.setHeader('Cache-Control', 'private, max-age=86400');
     res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(m.original || 'file')}`);
-    res.sendFile(path.join(uploadDir, m.file), (err) => { if (err) next(err.status ? new HttpError(err.status, 'File missing') : err); });
+    sendStored(res, next, m.file);
   });
 
   // ---- parent-only resources: activities, events, exam ladder
@@ -623,7 +642,7 @@ function createApp({ dataDir, cookieSecure = false } = {}) {
   app.get('/api/children/:cid/buddies', requireAuth, childParam, (req, res) => {
     res.json({ chosen: req.child.buddy_id ?? null, buddies: buddiesOf(req.child.id) });
   });
-  app.post('/api/children/:cid/buddies', requireParent, childParam, buddyUpload.single('picture'), (req, res) => {
+  app.post('/api/children/:cid/buddies', requireParent, childParam, buddyUpload.single('picture'), mirror, (req, res) => {
     try {
       if (!req.file) throw new HttpError(400, 'Choose a picture');
       const name = String(req.body.name || '').trim();
@@ -658,7 +677,7 @@ function createApp({ dataDir, cookieSecure = false } = {}) {
     if (req.user.role === 'child' && req.user.child_id !== b.child_id) return next(new HttpError(403, 'Not yours'));
     res.setHeader('Content-Type', b.mime);
     res.setHeader('Cache-Control', 'private, max-age=86400');
-    res.sendFile(path.join(uploadDir, b.file), (err) => { if (err) next(err.status ? new HttpError(err.status, 'File missing') : err); });
+    sendStored(res, next, b.file);
   });
 
   // ---- sample moments: try the app with fictional content, remove it with one tap
@@ -676,7 +695,10 @@ function createApp({ dataDir, cookieSecure = false } = {}) {
 
   // ---- "Download everything": a ZIP the family owns (JSON + original files + an offline index.html)
   app.get('/api/export', requireParent, async (req, res, next) => {
-    try { await streamExport(res, db, uploadDir, catalog); }
+    try {
+      await storage.ensureLocalAll(db.prepare('SELECT file FROM media UNION SELECT file FROM buddies').all().map((r) => r.file));
+      await streamExport(res, db, uploadDir, catalog);
+    }
     catch (err) { if (res.headersSent) res.destroy(err); else next(err); }
   });
 
@@ -719,13 +741,25 @@ function createApp({ dataDir, cookieSecure = false } = {}) {
   });
 
   app.locals.db = db;
+  app.locals.storage = storage;
   return app;
 }
 
 module.exports = { createApp };
 
 if (require.main === module) {
-  const port = Number(process.env.PORT) || 3000;
-  const app = createApp({ cookieSecure: process.env.COOKIE_SECURE === '1' });
-  app.listen(port, () => console.log(`Kaizen Folio is growing on http://localhost:${port}`));
+  (async () => {
+    const dataDir = process.env.ANKUR_DATA_DIR || path.join(__dirname, 'data');
+    const storage = createStorage({ dataDir });
+    await storage.restoreDb(); // before the database is opened; throws (and stops the boot) rather than start empty over real data
+    const port = Number(process.env.PORT) || 3000;
+    const app = createApp({ dataDir, cookieSecure: process.env.COOKIE_SECURE === '1', storage });
+    const server = app.listen(port, () => console.log(`Kaizen Folio is growing on http://localhost:${port}`));
+    const shutdown = () => {
+      server.close();
+      storage.flush(app.locals.db).catch((err) => console.error(err.message)).finally(() => process.exit(0));
+    };
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+  })().catch((err) => { console.error(err); process.exit(1); });
 }

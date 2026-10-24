@@ -89,9 +89,20 @@ npm test       # 26 API tests
 | --- | --- |
 | `PORT` | Port to listen on (default `3000`) |
 | `TZ` | Your time zone, e.g. `Asia/Singapore`, so "today" is your day, not UTC's |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_BUCKET` | Optional. Mirror uploads and database snapshots to a **private** Supabase Storage bucket (default `kaizen-folio`) so the app runs on a host with a wiped disk. Unset = local disk only. See *Free hosting* below |
 | `ANKUR_DATA_DIR` | Where the database and uploads live (default `./data`) |
 | `COOKIE_SECURE=1` | Mark the session cookie `Secure` — **set this behind HTTPS** |
 | `TRUST_PROXY=1` | Trust one reverse proxy hop (correct client IPs behind nginx/Caddy) |
+
+### Free hosting (Render + Supabase)
+
+`render.yaml` defines a free Render web service that deploys from GitHub. Render's free disk is wiped on every deploy and restart, so `storage.js` keeps the data in a private Supabase Storage bucket:
+
+- every upload is copied to the bucket before the app says "saved", and fetched back on demand if the disk was wiped;
+- the SQLite database is snapshotted ~10 s after any change (and on shutdown), plus one copy per day under `db/daily/`;
+- on boot, if there is no local database, the latest snapshot is restored. If the bucket can't be reached the app refuses to start rather than begin empty and overwrite real data.
+
+Setup: create a Supabase project and a **private** bucket named `kaizen-folio`; in Render set `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` (the service key stays on the server only). Free-tier trade-offs: Render sleeps after ~15 min idle (first visit takes 30–50 s) and Supabase pauses a project after a week with no activity. Sample moments' pictures are not mirrored; they are demo content only.
 
 ### Deploying (AWS outline)
 
