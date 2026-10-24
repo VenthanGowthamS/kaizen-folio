@@ -170,7 +170,19 @@ We can prove *"held, unchanged, since <date>"*, not *"this person created it"*.
 3. ❓ Should public/shareable portfolio items exist, and are they snapshots (C6)?
 4. ❓ Who counts as a trusted third party for verification (Phase D)?
 
-## 11. Next actions
+## 11. Config reference (names and locations only — never values)
+
+| Setting | Where it lives | Notes |
+|---|---|---|
+| `SUPABASE_URL` | Render environment | Project URL, not secret |
+| `SUPABASE_SERVICE_KEY` | Render environment **only** | The `service_role` / secret key. Never in the repo, docs or chat |
+| `SUPABASE_BUCKET` | `render.yaml` | `kaizen-folio`, **private** |
+| Supabase database password | Password manager | Not used by the app (it uses Storage only) |
+| Supabase publishable key | Not used | The app has no browser-side Supabase calls |
+| `COOKIE_SECURE`, `TRUST_PROXY`, `TZ` | `render.yaml` | Already set |
+| Domain `app.kaizenfolio.com` | Cloudflare DNS (CNAME → Render, DNS only until the certificate is issued) | Domain registered on Cloudflare |
+
+## 12. Next actions
 1. Pick the host and register DNS for the Kaizen Folio domain (Phase A).
 2. Deploy, set up the nightly backup, start the 6–8 week family trial.
 3. Revisit Phases B–D based on what the trial shows.
