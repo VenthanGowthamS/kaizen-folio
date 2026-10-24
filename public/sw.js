@@ -1,5 +1,5 @@
 // Minimal offline shell. Never caches API responses or media — those are private.
-const CACHE = 'kaizen-shell-v6';
+const CACHE = 'kaizen-shell-v7';
 const SHELL = ['/', '/style.css', '/theme.js', '/catalog.js', '/worldmap.js', '/app.js', '/icon.svg', '/manifest.webmanifest'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => {
@@ -9,6 +9,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   if (/^\/(api|media|buddy-pic)/.test(url.pathname)) return; // private: never cached
+  if (/\.mp4$/.test(url.pathname)) return; // video is streamed in ranges; let the browser handle it
   e.respondWith(fetch(e.request).then((res) => {
     const copy = res.clone();
     if (res.ok) caches.open(CACHE).then((c) => c.put(e.request, copy));

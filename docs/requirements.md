@@ -69,6 +69,7 @@ A child's history is scattered (phone gallery, WhatsApp, school email, certifica
 | Kid login + scripted Buddy (tap-only, no free text) | ✅ |
 | Parent-uploaded buddy pictures | ✅ |
 | PWA install, light and Midnight themes | ✅ |
+| **Welcome section on the sign-in page**: 40 s video tour (made-up sample family), 4 start steps, who-can-do-what, extras, privacy note. Hidden on the kid login. `public/welcome/` | ✅ |
 | Reminders for upcoming events | 🔴 |
 | Yearly highlights / "year in review" (AI-generated from saved moments) | 🔴 |
 

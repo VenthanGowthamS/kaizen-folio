@@ -200,6 +200,45 @@ async function boot() {
   }
 }
 
+/* ---------- welcome: what this is and how to use it, shown under the sign-in card ---------- */
+function welcomeSection() {
+  const step = (n, title, body) => h('li', { class: 'w-step' },
+    h('span', { class: 'w-num', 'aria-hidden': 'true' }, String(n)),
+    h('div', null, h('strong', null, title), h('p', null, body)));
+  const tile = (icon, title, body) => h('div', { class: 'w-tile' },
+    h('div', { class: 'w-ico', 'aria-hidden': 'true' }, icon), h('strong', null, title), h('p', null, body));
+  return h('section', { class: 'welcome', 'aria-labelledby': 'w-title' },
+    h('h2', { id: 'w-title' }, 'New here? See how it works'),
+    h('p', { class: 'w-lead' }, 'Kaizen Folio is a private place where a family keeps everything their child does — art, speech, exams, sport, awards — so it is there when it is needed, not rebuilt from memory.'),
+    h('video', { class: 'w-video', controls: true, playsinline: true, preload: 'none', poster: '/welcome/poster.jpg', 'aria-label': 'A 40-second tour of Kaizen Folio' },
+      h('source', { src: '/welcome/promo.mp4', type: 'video/mp4' }),
+      'Your browser can’t play this video.'),
+    h('p', { class: 'w-cap muted' }, '40-second tour · the child shown is a made-up sample, not a real family.'),
+
+    h('h3', null, 'Get started in four steps'),
+    h('ol', { class: 'w-steps' },
+      step(1, 'Create the parent account', 'The first person to open a fresh Kaizen Folio sets it up: your name, a password and your child’s name. Everyone else is invited, so strangers can’t sign up.'),
+      step(2, 'Add a moment', 'Tap + Add moment. Pick the area (art, speech, exam, swimming…), give it a title and date, then attach a photo, a voice recording, a video or a certificate PDF. Add the score or result, and one small next step.'),
+      step(3, 'Follow the journey', 'The Portfolio tab is the timeline. The Dashboard shows upcoming contests and exams, the exam ladder and the next small steps to tick off. The Goals tab maps the school path to university.'),
+      step(4, 'Invite family and the child', 'Family → Invite. Grandparents get a view-only login and can leave short cheers. The child gets their own simple login with a friendly Buddy.')),
+
+    h('h3', null, 'Who can do what'),
+    h('div', { class: 'w-tiles' },
+      tile('🧑', 'Parent', 'Adds and edits everything, sees goals and the dashboard, builds the PDF portfolio.'),
+      tile('👪', 'Family', 'Views the portfolio and leaves cheers. Cannot change anything.'),
+      tile('🧒', 'Child', 'Sees only their own journey, adds how it felt in their own words, and picks a Buddy.')),
+
+    h('h3', null, 'Also handy'),
+    h('ul', { class: 'w-list' },
+      h('li', null, h('strong', null, 'PDF portfolio — '), 'one tap builds an A4 book with highlights, results and photos.'),
+      h('li', null, h('strong', null, 'Download everything — '), 'Family → Download gives you a ZIP of every record and original file, any time.'),
+      h('li', null, h('strong', null, 'Install on your phone — '), 'in Safari tap Share → Add to Home Screen; in Chrome tap ⋮ → Install app.')),
+
+    h('div', { class: 'note w-privacy' },
+      h('strong', null, '🔒 Private by design. '),
+      'Sign-in only. Photos and recordings are shown only to signed-in family, pages are hidden from search engines, and you can download or delete your family’s data whenever you like.'));
+}
+
 function renderAuth(needsSetup) {
   let kid = false;
   let creating = needsSetup; // a fresh install opens on "Create account"; otherwise on "Sign in"
@@ -264,7 +303,8 @@ function renderAuth(needsSetup) {
       h('h1', null, kid ? 'Hi there! 👋' : 'Kaizen Folio'),
       h('p', { class: 'tag' }, tag),
       invitedOnly ? invitedNote : form,
-      swap)));
+      swap),
+    !kid && welcomeSection()));
     form.querySelector('input')?.focus();
   };
   draw();
