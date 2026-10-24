@@ -30,6 +30,29 @@ async function serveStatic(request, env) {
   const res = await env.ASSETS.fetch(request);
   const out = new Headers(res.headers);
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) out.set(k, v);
+  out.set('Accept-Ranges', 'bytes');
+
+  // iPhone Safari will not play a video unless the server answers byte-range requests, and static assets here do not,
+  // so slice the (small) video ourselves.
+  const range = request.headers.get('Range');
+  if (range && res.status === 200 && /^video\//.test(out.get('Content-Type') || '')) {
+    const m = /^bytes=(\d*)-(\d*)$/.exec(range);
+    const buf = await res.arrayBuffer();
+    const size = buf.byteLength;
+    if (m && (m[1] || m[2])) {
+      const start = m[1] === '' ? Math.max(size - Number(m[2]), 0) : Number(m[1]);
+      const end = m[1] === '' || m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1);
+      if (start <= end && start < size) {
+        out.set('Content-Range', `bytes ${start}-${end}/${size}`);
+        out.set('Content-Length', String(end - start + 1));
+        return new Response(buf.slice(start, end + 1), { status: 206, headers: out });
+      }
+      out.set('Content-Range', `bytes */${size}`);
+      out.set('Content-Length', '0');
+      return new Response(null, { status: 416, headers: out });
+    }
+    return new Response(buf, { status: 200, headers: out });
+  }
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers: out });
 }
 
